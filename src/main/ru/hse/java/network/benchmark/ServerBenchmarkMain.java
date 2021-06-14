@@ -55,14 +55,15 @@ public class ServerBenchmarkMain {
             server.start();
 
             List<Client> clients = new ArrayList<>();
+            InetSocketAddress serverInetSocketAddress = new InetSocketAddress("localhost", Server.PORT);
             for (long i = 0; i < clientsNumber; i++) {
-                clients.add(new Client(benchmarkExecutionParameters.getOneClientTotalQueriesNumber(),
+                clients.add(new Client(benchmarkExecutionParameters.getOneClientTotalRequestsNumber(),
                                        benchmarkExecutionParameters.getArraysToSortLength(),
-                                       benchmarkExecutionParameters.getClientQueriesTimeDeltaMillis()));
+                                       benchmarkExecutionParameters.getClientRequestsTimeDeltaMillis(),
+                                       serverInetSocketAddress));
             }
-            InetSocketAddress serverAddress = new InetSocketAddress("localhost", Server.PORT);
             for (Client client : clients) {
-                client.start(serverAddress);
+                client.start();
             }
 
             QueryAverageTimeStatistics queryAverageTimeStatistics = server.getAverageQueryStatistics();

@@ -17,30 +17,30 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
     private final String configName;
 
     private final ServerArchitecture serverArchitecture;
-    private final long oneClientTotalQueriesNumber;
+    private final long oneClientTotalRequestsNumber;
     private final ChangingParameter changingParameter;
 
     // changing parameter value is ignored
-    private final long arraysToSortLength;
+    private final int arraysToSortLength;
     private final long numberOfSimultaneouslyWorkingClients;
-    private final long clientQueriesTimeDeltaMillis;
+    private final long clientRequestsTimeDeltaMillis;
 
     @JsonCreator
     public BenchmarkConfig(
             @JsonProperty("configName") @NotNull String configName,
             @JsonProperty("serverArchitecture") @NotNull ServerArchitecture serverArchitecture,
-            @JsonProperty("oneClientTotalQueriesNumber") long oneClientTotalQueriesNumber,
+            @JsonProperty("oneClientTotalRequestsNumber") long oneClientTotalRequestsNumber,
             @JsonProperty("changingParameter") @NotNull ChangingParameter changingParameter,
-            @JsonProperty("arraysToSortLength") long arraysToSortLength,
+            @JsonProperty("arraysToSortLength") int arraysToSortLength,
             @JsonProperty("numberOfSimultaneouslyWorkingClients") long numberOfSimultaneouslyWorkingClients,
-            @JsonProperty("clientQueriesTimeDeltaMillis") long clientQueriesTimeDeltaMillis) throws BenchmarkConfigException {
+            @JsonProperty("clientRequestsTimeDeltaMillis") long clientRequestsTimeDeltaMillis) throws BenchmarkConfigException {
         this.configName = configName;
         this.serverArchitecture = serverArchitecture;
-        this.oneClientTotalQueriesNumber = oneClientTotalQueriesNumber;
+        this.oneClientTotalRequestsNumber = oneClientTotalRequestsNumber;
         this.changingParameter = changingParameter;
         this.arraysToSortLength = arraysToSortLength;
         this.numberOfSimultaneouslyWorkingClients = numberOfSimultaneouslyWorkingClients;
-        this.clientQueriesTimeDeltaMillis = clientQueriesTimeDeltaMillis;
+        this.clientRequestsTimeDeltaMillis = clientRequestsTimeDeltaMillis;
         validate();
     }
 
@@ -77,16 +77,16 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
             switch (changingParameter.getType()) {
                 case ARRAYS_TO_SORT_LENGTH:
                     benchmarkExecutionParameters = new BenchmarkExecutionParameters(
-                            changingParameter.getFrom() - changingParameter.getStep(),
+                            (int) (changingParameter.getFrom() - changingParameter.getStep()),
                             numberOfSimultaneouslyWorkingClients,
-                            clientQueriesTimeDeltaMillis);
+                            clientRequestsTimeDeltaMillis);
                     break;
                 case NUMBER_OF_SIMULTANEOUSLY_WORKING_CLIENTS:
                     benchmarkExecutionParameters = new BenchmarkExecutionParameters(arraysToSortLength,
                                                                                     changingParameter.getFrom() - changingParameter.getStep(),
-                                                                                    clientQueriesTimeDeltaMillis);
+                                                                                    clientRequestsTimeDeltaMillis);
                     break;
-                case CLIENT_QUERIES_TIME_DELTA_MILLIS:
+                case CLIENT_REQUESTS_TIME_DELTA_MILLIS:
                     benchmarkExecutionParameters = new BenchmarkExecutionParameters(arraysToSortLength,
                                                                                     numberOfSimultaneouslyWorkingClients,
                                                                                     changingParameter.getFrom() - changingParameter.getStep());
@@ -107,27 +107,27 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
     }
 
     public class BenchmarkExecutionParameters {
-        private long arraysToSortLength;
+        private int arraysToSortLength;
         private long numberOfSimultaneouslyWorkingClients;
-        private long clientQueriesTimeDeltaMillis;
+        private long clientRequestsTimeDeltaMillis;
 
         public BenchmarkExecutionParameters(
-                long arraysToSortLength,
-                long numberOfSimultaneouslyWorkingClients, long clientQueriesTimeDeltaMillis) {
+                int arraysToSortLength,
+                long numberOfSimultaneouslyWorkingClients, long clientRequestsTimeDeltaMillis) {
             this.arraysToSortLength = arraysToSortLength;
             this.numberOfSimultaneouslyWorkingClients = numberOfSimultaneouslyWorkingClients;
-            this.clientQueriesTimeDeltaMillis = clientQueriesTimeDeltaMillis;
+            this.clientRequestsTimeDeltaMillis = clientRequestsTimeDeltaMillis;
         }
 
         public @NotNull ServerArchitecture getServerArchitecture() {
             return serverArchitecture;
         }
 
-        public long getOneClientTotalQueriesNumber() {
-            return oneClientTotalQueriesNumber;
+        public long getOneClientTotalRequestsNumber() {
+            return oneClientTotalRequestsNumber;
         }
 
-        public long getArraysToSortLength() {
+        public int getArraysToSortLength() {
             return arraysToSortLength;
         }
 
@@ -135,8 +135,8 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
             return numberOfSimultaneouslyWorkingClients;
         }
 
-        public long getClientQueriesTimeDeltaMillis() {
-            return clientQueriesTimeDeltaMillis;
+        public long getClientRequestsTimeDeltaMillis() {
+            return clientRequestsTimeDeltaMillis;
         }
 
         public long getChangingParameterValue() {
@@ -145,8 +145,8 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
                     return arraysToSortLength;
                 case NUMBER_OF_SIMULTANEOUSLY_WORKING_CLIENTS:
                     return numberOfSimultaneouslyWorkingClients;
-                case CLIENT_QUERIES_TIME_DELTA_MILLIS:
-                    return clientQueriesTimeDeltaMillis;
+                case CLIENT_REQUESTS_TIME_DELTA_MILLIS:
+                    return clientRequestsTimeDeltaMillis;
                 default:
                     throw new IllegalStateException("illegal changing parameter type");
             }
@@ -160,16 +160,17 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
                 case NUMBER_OF_SIMULTANEOUSLY_WORKING_CLIENTS:
                     numberOfSimultaneouslyWorkingClients += step;
                     break;
-                case CLIENT_QUERIES_TIME_DELTA_MILLIS:
-                    clientQueriesTimeDeltaMillis += step;
+                case CLIENT_REQUESTS_TIME_DELTA_MILLIS:
+                    clientRequestsTimeDeltaMillis += step;
                     break;
             }
         }
     }
 
     private @NotNull BenchmarkConfig validate() throws BenchmarkConfigException {
-        validateParameterIsInRange(oneClientTotalQueriesNumber, ParametersBounds.ONE_CLIENT_TOTAL_QUERIES_NUMBER_MIN,
-                                   ParametersBounds.ONE_CLIENT_TOTAL_QUERIES_NUMBER_MAX, "oneClientTotalQueriesNumber");
+        validateParameterIsInRange(oneClientTotalRequestsNumber, ParametersBounds.ONE_CLIENT_TOTAL_REQUESTS_NUMBER_MIN,
+                                   ParametersBounds.ONE_CLIENT_TOTAL_REQUESTS_NUMBER_MAX,
+                                   "oneClientTotalRequestsNumber");
 
         switch (changingParameter.getType()) {
             case ARRAYS_TO_SORT_LENGTH:
@@ -183,10 +184,10 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
                                            ParametersBounds.NUMBER_OF_SIMULTANEOUSLY_WORKING_CLIENTS_MIN,
                                            ParametersBounds.NUMBER_OF_SIMULTANEOUSLY_WORKING_CLIENTS_MAX,
                                            "numberOfSimultaneouslyWorkingClients");
-                validateParameterIsInRange(clientQueriesTimeDeltaMillis,
-                                           ParametersBounds.CLIENT_QUERIES_TIME_DELTA_MILLIS_MIN,
-                                           ParametersBounds.CLIENT_QUERIES_TIME_DELTA_MILLIS_MAX,
-                                           "clientQueriesTimeDeltaMillis");
+                validateParameterIsInRange(clientRequestsTimeDeltaMillis,
+                                           ParametersBounds.CLIENT_REQUESTS_TIME_DELTA_MILLIS_MIN,
+                                           ParametersBounds.CLIENT_REQUESTS_TIME_DELTA_MILLIS_MAX,
+                                           "clientRequestsTimeDeltaMillis");
 
                 break;
             case NUMBER_OF_SIMULTANEOUSLY_WORKING_CLIENTS:
@@ -200,20 +201,20 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
                                            "changingParameter=numberOfSimultaneouslyWorkingClients:to");
                 validateParameterIsInRange(arraysToSortLength, ParametersBounds.ARRAYS_TO_SORT_LENGTH_MIN,
                                            ParametersBounds.ARRAYS_TO_SORT_LENGTH_MAX, "arraysToSortLength");
-                validateParameterIsInRange(clientQueriesTimeDeltaMillis,
-                                           ParametersBounds.CLIENT_QUERIES_TIME_DELTA_MILLIS_MIN,
-                                           ParametersBounds.CLIENT_QUERIES_TIME_DELTA_MILLIS_MAX,
-                                           "clientQueriesTimeDeltaMillis");
+                validateParameterIsInRange(clientRequestsTimeDeltaMillis,
+                                           ParametersBounds.CLIENT_REQUESTS_TIME_DELTA_MILLIS_MIN,
+                                           ParametersBounds.CLIENT_REQUESTS_TIME_DELTA_MILLIS_MAX,
+                                           "clientRequestsTimeDeltaMillis");
                 break;
-            case CLIENT_QUERIES_TIME_DELTA_MILLIS:
+            case CLIENT_REQUESTS_TIME_DELTA_MILLIS:
                 validateParameterIsInRange(changingParameter.getFrom(),
-                                           ParametersBounds.CLIENT_QUERIES_TIME_DELTA_MILLIS_MIN,
-                                           ParametersBounds.CLIENT_QUERIES_TIME_DELTA_MILLIS_MAX,
-                                           "changingParameter=clientQueriesTimeDeltaMillis:from");
+                                           ParametersBounds.CLIENT_REQUESTS_TIME_DELTA_MILLIS_MIN,
+                                           ParametersBounds.CLIENT_REQUESTS_TIME_DELTA_MILLIS_MAX,
+                                           "changingParameter=clientRequestsTimeDeltaMillis:from");
                 validateParameterIsInRange(changingParameter.getTo(),
-                                           ParametersBounds.CLIENT_QUERIES_TIME_DELTA_MILLIS_MIN,
-                                           ParametersBounds.CLIENT_QUERIES_TIME_DELTA_MILLIS_MAX,
-                                           "changingParameter=clientQueriesTimeDeltaMillis:to");
+                                           ParametersBounds.CLIENT_REQUESTS_TIME_DELTA_MILLIS_MIN,
+                                           ParametersBounds.CLIENT_REQUESTS_TIME_DELTA_MILLIS_MAX,
+                                           "changingParameter=clientRequestsTimeDeltaMillis:to");
                 validateParameterIsInRange(arraysToSortLength, ParametersBounds.ARRAYS_TO_SORT_LENGTH_MIN,
                                            ParametersBounds.ARRAYS_TO_SORT_LENGTH_MAX, "arraysToSortLength");
                 validateParameterIsInRange(numberOfSimultaneouslyWorkingClients,
@@ -284,7 +285,7 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
                     return "arrays-length";
                 case NUMBER_OF_SIMULTANEOUSLY_WORKING_CLIENTS:
                     return "working-clients";
-                case CLIENT_QUERIES_TIME_DELTA_MILLIS:
+                case CLIENT_REQUESTS_TIME_DELTA_MILLIS:
                     return "queries-delta";
                 default:
                     throw new IllegalStateException("illegal changing parameter type");
@@ -294,23 +295,23 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
         public enum Type {
             ARRAYS_TO_SORT_LENGTH,
             NUMBER_OF_SIMULTANEOUSLY_WORKING_CLIENTS,
-            CLIENT_QUERIES_TIME_DELTA_MILLIS
+            CLIENT_REQUESTS_TIME_DELTA_MILLIS
         }
     }
 
-    private static class ParametersBounds {
+    public static class ParametersBounds {
 
-        public static final long ONE_CLIENT_TOTAL_QUERIES_NUMBER_MIN = 1;
-        public static final long ONE_CLIENT_TOTAL_QUERIES_NUMBER_MAX = Long.MAX_VALUE;
+        public static final long ONE_CLIENT_TOTAL_REQUESTS_NUMBER_MIN = 1;
+        public static final long ONE_CLIENT_TOTAL_REQUESTS_NUMBER_MAX = Long.MAX_VALUE;
 
-        public static final long ARRAYS_TO_SORT_LENGTH_MIN = 1;
-        public static final long ARRAYS_TO_SORT_LENGTH_MAX = Long.MAX_VALUE;
+        public static final int ARRAYS_TO_SORT_LENGTH_MIN = 1;
+        public static final int ARRAYS_TO_SORT_LENGTH_MAX = 100_000_000;
 
         public static final long NUMBER_OF_SIMULTANEOUSLY_WORKING_CLIENTS_MIN = 1;
         public static final long NUMBER_OF_SIMULTANEOUSLY_WORKING_CLIENTS_MAX = 10_000;
 
-        public static final long CLIENT_QUERIES_TIME_DELTA_MILLIS_MIN = 0;
-        public static final long CLIENT_QUERIES_TIME_DELTA_MILLIS_MAX = Long.MAX_VALUE;
+        public static final long CLIENT_REQUESTS_TIME_DELTA_MILLIS_MIN = 0;
+        public static final long CLIENT_REQUESTS_TIME_DELTA_MILLIS_MAX = Long.MAX_VALUE;
 
         public static final long CHANGING_PARAMETER_STEP_MIN = 0;
         public static final long CHANGING_PARAMETER_STEP_MAX = Long.MAX_VALUE;

@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "ru.hse.java.network.benchmark.protocol";
+option java_outer_classname = "ServerToClientMessage";
+
+message ServerToClient {
+
+  MessageType messageType = 1;
+
+  int64 taskId = 2;
+  repeated int32 sortedArray = 3;
+
+  fixed64 fromInstant = 4;
+  fixed64 toInstant = 5;
+
+  enum MessageType {
+    SORT_ARRAY_RESPONSE = 0;
+    QUERY_STATISTICS_REQUEST = 1;
+  }
+}

@@ -11,7 +11,7 @@ public class GenerateBenchmarkConfigsMain {
                                     1000,
                                     10_000,
                                     1000),
-                            1000,
+                            -1,
                             10,
                             1000).serializeToFile("src/resources/");
     }
