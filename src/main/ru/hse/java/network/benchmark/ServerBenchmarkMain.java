@@ -18,7 +18,7 @@ import java.util.List;
 
 public class ServerBenchmarkMain {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException, IOException {
         final int FAIL_RETURN_CODE = 1;
         if (args.length != 1) {
             System.err.println("One argument required: benchmark config filename");
@@ -37,7 +37,7 @@ public class ServerBenchmarkMain {
         List<String> outputFileLines = new ArrayList<>();
         outputFileLines.add(benchmarkConfig.getChangingParameterTitle() + ",server-side,client-side");
         for (BenchmarkConfig.BenchmarkExecutionParameters benchmarkExecutionParameters : benchmarkConfig) {
-            final long clientsNumber = benchmarkExecutionParameters.getNumberOfSimultaneouslyWorkingClients();
+            final int clientsNumber = benchmarkExecutionParameters.getNumberOfSimultaneouslyWorkingClients();
             Server server;
             switch (benchmarkExecutionParameters.getServerArchitecture()) {
                 case BLOCKING:

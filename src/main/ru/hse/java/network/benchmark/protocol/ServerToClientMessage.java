@@ -38,10 +38,10 @@ public class ServerToClientMessage {
         this.toInstant = toInstant;
     }
 
-    public long getSizeInBytes() {
+    public int getSizeInBytes() {
         switch (messageType) {
             case SORT_ARRAY_RESPONSE:
-                return Integer.BYTES * 2 + Long.BYTES + ((long) sortedArray.length) * Long.BYTES;
+                return Integer.BYTES * 2 + Long.BYTES + sortedArray.length * Long.BYTES;
             case QUERY_STATISTICS_REQUEST:
                 return Integer.BYTES + Long.BYTES * 2;
             default:

@@ -22,7 +22,7 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
 
     // changing parameter value is ignored
     private final int arraysToSortLength;
-    private final long numberOfSimultaneouslyWorkingClients;
+    private final int numberOfSimultaneouslyWorkingClients;
     private final long clientRequestsTimeDeltaMillis;
 
     @JsonCreator
@@ -32,7 +32,7 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
             @JsonProperty("oneClientTotalRequestsNumber") long oneClientTotalRequestsNumber,
             @JsonProperty("changingParameter") @NotNull ChangingParameter changingParameter,
             @JsonProperty("arraysToSortLength") int arraysToSortLength,
-            @JsonProperty("numberOfSimultaneouslyWorkingClients") long numberOfSimultaneouslyWorkingClients,
+            @JsonProperty("numberOfSimultaneouslyWorkingClients") int numberOfSimultaneouslyWorkingClients,
             @JsonProperty("clientRequestsTimeDeltaMillis") long clientRequestsTimeDeltaMillis) throws BenchmarkConfigException {
         this.configName = configName;
         this.serverArchitecture = serverArchitecture;
@@ -83,7 +83,7 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
                     break;
                 case NUMBER_OF_SIMULTANEOUSLY_WORKING_CLIENTS:
                     benchmarkExecutionParameters = new BenchmarkExecutionParameters(arraysToSortLength,
-                                                                                    changingParameter.getFrom() - changingParameter.getStep(),
+                                                                                    (int) (changingParameter.getFrom() - changingParameter.getStep()),
                                                                                     clientRequestsTimeDeltaMillis);
                     break;
                 case CLIENT_REQUESTS_TIME_DELTA_MILLIS:
@@ -108,12 +108,12 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
 
     public class BenchmarkExecutionParameters {
         private int arraysToSortLength;
-        private long numberOfSimultaneouslyWorkingClients;
+        private int numberOfSimultaneouslyWorkingClients;
         private long clientRequestsTimeDeltaMillis;
 
         public BenchmarkExecutionParameters(
                 int arraysToSortLength,
-                long numberOfSimultaneouslyWorkingClients, long clientRequestsTimeDeltaMillis) {
+                int numberOfSimultaneouslyWorkingClients, long clientRequestsTimeDeltaMillis) {
             this.arraysToSortLength = arraysToSortLength;
             this.numberOfSimultaneouslyWorkingClients = numberOfSimultaneouslyWorkingClients;
             this.clientRequestsTimeDeltaMillis = clientRequestsTimeDeltaMillis;
@@ -131,7 +131,7 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
             return arraysToSortLength;
         }
 
-        public long getNumberOfSimultaneouslyWorkingClients() {
+        public int getNumberOfSimultaneouslyWorkingClients() {
             return numberOfSimultaneouslyWorkingClients;
         }
 
