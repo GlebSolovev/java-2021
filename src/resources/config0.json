@@ -1,0 +1,1 @@
+{"configName":"config0","serverArchitecture":"BLOCKING","oneClientTotalQueriesNumber":1000,"changingParameter":{"type":"ARRAYS_TO_SORT_LENGTH","from":1000,"to":10000,"step":1000},"arraysToSortLength":1000,"numberOfSimultaneouslyWorkingClients":10,"clientQueriesTimeDeltaMillis":1000}
