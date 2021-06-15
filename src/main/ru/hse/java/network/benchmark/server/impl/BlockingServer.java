@@ -85,7 +85,9 @@ public final class BlockingServer extends AbstractBenchmarkServer {
 
         private void processQuery(@NotNull Query query) {
             sortArray(query.getArray());
-            responseWriter.submit(() -> writeResponse(query));
+            if(working.get()) {
+                responseWriter.submit(() -> writeResponse(query));
+            }
         }
 
         private void writeResponse(@NotNull Query query) {
@@ -131,7 +133,9 @@ public final class BlockingServer extends AbstractBenchmarkServer {
                         return;
                     }
                     logQueryStart(query.getId());
-                    workersThreadPool.submit(() -> processQuery(query));
+                    if(working.get()) {
+                        workersThreadPool.submit(() -> processQuery(query));
+                    }
                 }
             }
         }

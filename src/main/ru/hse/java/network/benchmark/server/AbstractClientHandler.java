@@ -30,7 +30,7 @@ public abstract class AbstractClientHandler {
                 completedQueriesInRangeNumber++;
             }
         }
-        return queriesInRangeTimeMillisSum / completedQueriesInRangeNumber;
+        return completedQueriesInRangeNumber == 0 ? 0 : queriesInRangeTimeMillisSum / completedQueriesInRangeNumber;
     }
 
     protected void sortArray(int[] array) {

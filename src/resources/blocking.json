@@ -1,1 +1,0 @@
-{"configName":"blocking","serverArchitecture":"BLOCKING","oneClientTotalRequestsNumber":10,"changingParameter":{"type":"ARRAYS_TO_SORT_LENGTH","from":100,"to":1000,"step":100},"arraysToSortLength":-1,"numberOfSimultaneouslyWorkingClients":1,"clientRequestsTimeDeltaMillis":100}

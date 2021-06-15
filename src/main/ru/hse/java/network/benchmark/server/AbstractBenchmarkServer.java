@@ -72,7 +72,7 @@ public abstract class AbstractBenchmarkServer {
     protected final void terminate(@NotNull Exception causeException) {
         finishLock.lock();
         try {
-            if(terminationCauseException != null) {
+            if (terminationCauseException != null) {
                 terminationCauseException.addSuppressed(causeException);
                 return;
             }
@@ -105,14 +105,14 @@ public abstract class AbstractBenchmarkServer {
         return queriesInRangeAverageTimeMillisSum / clientHandlers.size();
     }
 
-    protected @NotNull ServerSocketChannel openAndBindServerSocketChannel()  throws IOException {
+    protected @NotNull ServerSocketChannel openAndBindServerSocketChannel() throws IOException {
         ServerSocketChannel serverSocketChannel = null;
-        try{
+        try {
             serverSocketChannel = ServerSocketChannel.open();
             serverSocketChannel.socket().bind(new InetSocketAddress(PORT));
         } catch (IOException ioException) {
             try {
-                if(serverSocketChannel != null) {
+                if (serverSocketChannel != null) {
                     serverSocketChannel.close();
                 }
             } catch (IOException closeChannelIOException) {
@@ -124,14 +124,14 @@ public abstract class AbstractBenchmarkServer {
         return serverSocketChannel;
     }
 
-    protected @NotNull AsynchronousServerSocketChannel openAndBindAsynchronousServerSocketChannel()  throws IOException {
+    protected @NotNull AsynchronousServerSocketChannel openAndBindAsynchronousServerSocketChannel() throws IOException {
         AsynchronousServerSocketChannel asynchronousServerSocketChannel = null;
-        try{
+        try {
             asynchronousServerSocketChannel = AsynchronousServerSocketChannel.open();
             asynchronousServerSocketChannel.bind(new InetSocketAddress(PORT));
         } catch (IOException ioException) {
             try {
-                if(asynchronousServerSocketChannel != null) {
+                if (asynchronousServerSocketChannel != null) {
                     asynchronousServerSocketChannel.close();
                 }
             } catch (IOException closeChannelIOException) {

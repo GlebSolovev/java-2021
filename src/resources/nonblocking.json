@@ -1,1 +1,0 @@
-{"configName":"nonblocking","serverArchitecture":"NON_BLOCKING","oneClientTotalRequestsNumber":10,"changingParameter":{"type":"CLIENT_REQUESTS_TIME_DELTA_MILLIS","from":100,"to":1000,"step":100},"arraysToSortLength":100,"numberOfSimultaneouslyWorkingClients":1,"clientRequestsTimeDeltaMillis":-1}

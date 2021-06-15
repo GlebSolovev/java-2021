@@ -212,7 +212,6 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
             int queryBufferBytesNumber = 0;
 
             public void read() throws IOException {
-
                 if (messageSize == -1) {
                     socketChannel.read(querySizeBuffer);
                     if (querySizeBuffer.remaining() != 0) {
@@ -221,7 +220,7 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
                     querySizeBuffer.flip();
                     messageSize = querySizeBuffer.getInt();
                     querySizeBuffer.clear();
-                    if(messageSize == 0) { // query size == 0 => finish benchmark request
+                    if (messageSize == 0) { // query size == 0 => finish benchmark request
                         finishBenchmark();
                         return;
                     }
@@ -233,12 +232,14 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
                 if (queryBufferBytesNumber == messageSize) {
                     queryBuffer.flip();
                     Query query = Query.parseFrom(queryBuffer, messageSize);
-                    queryBufferBytesNumber -= messageSize;
+                    queryBufferBytesNumber = 0;
                     messageSize = -1;
                     queryBuffer = null;
 
                     logQueryStart(query.getId());
-                    workersThreadPool.submit(() -> processQuery(query));
+                    if (isWorking.get()) {
+                        workersThreadPool.submit(() -> processQuery(query));
+                    }
                 }
             }
         }
@@ -253,6 +254,7 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
                 ByteBuffer queryMessage = ByteBuffer.allocate(Integer.BYTES + query.getSizeInBytes());
                 queryMessage.putInt(query.getSizeInBytes());
                 query.serializeTo(queryMessage);
+                queryMessage.flip();
                 responsesToWrite.add(queryMessage);
 
                 responseWriter.registerClientHandler(ClientHandler.this);

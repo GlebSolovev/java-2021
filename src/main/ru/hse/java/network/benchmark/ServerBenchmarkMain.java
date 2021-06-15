@@ -82,7 +82,8 @@ public final class ServerBenchmarkMain {
             }
             outputFileLines.add(
                     benchmarkExecutionParameters.getChangingParameterValue() + "," + queryAverageTimeStatistics.getServerSideTimeMillis() + "," + queryAverageTimeStatistics.getClientSideTimeMillis());
-            System.out.println(benchmarkConfig.getChangingParameterTitle() + " = " + benchmarkExecutionParameters.getChangingParameterValue() + " execution succeed");
+            System.out.println(
+                    benchmarkConfig.getChangingParameterTitle() + " = " + benchmarkExecutionParameters.getChangingParameterValue() + " execution succeed");
         }
 
         String outputFilePath = "benchmark-results/" + benchmarkConfig.getConfigName() + ".csv";

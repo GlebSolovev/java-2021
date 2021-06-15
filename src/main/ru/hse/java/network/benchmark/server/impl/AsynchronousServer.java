@@ -128,9 +128,9 @@ public final class AsynchronousServer extends AbstractBenchmarkServer {
                                 queryBuffer.flip();
                                 Query query = Query.parseFrom(queryBuffer, querySize);
                                 logQueryStart(query.getId());
-                                workersThreadPool.submit(() -> processQuery(query));
 
                                 if (working.get()) {
+                                    workersThreadPool.submit(() -> processQuery(query));
                                     asynchronousSocketChannel.read(querySizeBuffer, IO_OPERATION_TIMEOUT_MILLIS,
                                                                    TimeUnit.MILLISECONDS, null, this);
                                 }
@@ -152,6 +152,7 @@ public final class AsynchronousServer extends AbstractBenchmarkServer {
                 ByteBuffer queryMessage = ByteBuffer.allocate(Integer.BYTES + query.getSizeInBytes());
                 queryMessage.putInt(query.getSizeInBytes());
                 query.serializeTo(queryMessage);
+                queryMessage.flip();
 
                 asynchronousSocketChannel.write(queryMessage, IO_OPERATION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS, null,
                                                 new CompletionHandler<Integer, Void>() {

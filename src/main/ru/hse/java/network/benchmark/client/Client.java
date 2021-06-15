@@ -55,7 +55,7 @@ public final class Client extends AbstractClientHandler {
         requestsWriter.shutdownNow();
         responseReader.shutdownNow();
         try {
-            if(socketChannel != null) {
+            if (socketChannel != null) {
                 socketChannel.close();
             }
         } catch (IOException ioException) {
@@ -157,7 +157,7 @@ public final class Client extends AbstractClientHandler {
                 logQueryFinish(query.getId());
 
                 readResponsesNumber++;
-                if(readResponsesNumber == totalRequestsNumber) {
+                if (readResponsesNumber == totalRequestsNumber) {
                     writeFinishBenchmarkRequest();
                     finishBenchmark();
                     return;
