@@ -86,7 +86,7 @@ public final class Client extends AbstractClientHandler {
         responseReader.submit(new ReadResponsesTask());
     }
 
-    private class WriteRequestTask implements Runnable {
+    private final class WriteRequestTask implements Runnable {
 
         private final AtomicLong writtenRequestsNumber = new AtomicLong(0);
         private final Random random = new Random();
@@ -128,7 +128,7 @@ public final class Client extends AbstractClientHandler {
         }
     }
 
-    private class ReadResponsesTask implements Runnable {
+    private final class ReadResponsesTask implements Runnable {
 
         private final ByteBuffer querySizeBuffer = ByteBuffer.allocate(Integer.BYTES);
         private final ByteBuffer queryBuffer = ByteBuffer.allocate(Query.getMaxSizeInBytes());

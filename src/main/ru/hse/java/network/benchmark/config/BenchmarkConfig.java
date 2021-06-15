@@ -13,7 +13,7 @@ import java.nio.file.Paths;
 import java.util.Iterator;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
-public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecutionParameters> {
+public final class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecutionParameters> {
     private final String configName;
 
     private final ServerArchitecture serverArchitecture;
@@ -70,7 +70,7 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
         return new BenchmarkExecutionsIterator();
     }
 
-    private class BenchmarkExecutionsIterator implements Iterator<BenchmarkExecutionParameters> {
+    private final class BenchmarkExecutionsIterator implements Iterator<BenchmarkExecutionParameters> {
         private BenchmarkExecutionParameters benchmarkExecutionParameters;
 
         private BenchmarkExecutionsIterator() {
@@ -106,7 +106,7 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
         }
     }
 
-    public class BenchmarkExecutionParameters {
+    public final class BenchmarkExecutionParameters {
         private int arraysToSortLength;
         private int numberOfSimultaneouslyWorkingClients;
         private long clientRequestsTimeDeltaMillis;
@@ -244,7 +244,7 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
         ASYNCHRONOUS
     }
 
-    public static class ChangingParameter {
+    public final static class ChangingParameter {
         private final Type type;
         private final long from;
         private final long to;
@@ -299,7 +299,7 @@ public class BenchmarkConfig implements Iterable<BenchmarkConfig.BenchmarkExecut
         }
     }
 
-    public static class ParametersBounds {
+    public final static class ParametersBounds {
 
         public static final long ONE_CLIENT_TOTAL_REQUESTS_NUMBER_MIN = 1;
         public static final long ONE_CLIENT_TOTAL_REQUESTS_NUMBER_MAX = Long.MAX_VALUE;

@@ -8,6 +8,7 @@ import ru.hse.java.network.benchmark.config.BenchmarkConfigException;
 import ru.hse.java.network.benchmark.server.AbstractBenchmarkServer;
 import ru.hse.java.network.benchmark.server.BenchmarkExecutionInstants;
 import ru.hse.java.network.benchmark.server.impl.BlockingServer;
+import ru.hse.java.network.benchmark.server.impl.NonBlockingServer;
 
 import java.io.File;
 import java.io.IOException;
@@ -15,7 +16,7 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ServerBenchmarkMain {
+public final class ServerBenchmarkMain {
 
     public static void main(String[] args) throws InterruptedException {
         final int FAIL_RETURN_CODE = 1;
@@ -43,7 +44,7 @@ public class ServerBenchmarkMain {
                     server = new BlockingServer(clientsNumber);
                     break;
                 case NON_BLOCKING:
-//                    server = new NonBlockingServer(clientsNumber);
+                    server = new NonBlockingServer(clientsNumber);
                     break;
                 case ASYNCHRONOUS:
 //                    server = new AsynchronousServer(clientsNumber);

@@ -1,6 +1,6 @@
 package ru.hse.java.network.benchmark;
 
-public class QueryAverageTimeStatistics {
+public final class QueryAverageTimeStatistics {
     private final long serverSideTimeMillis;
     private final long clientSideTimeMillis;
 

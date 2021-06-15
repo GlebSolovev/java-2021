@@ -1,6 +1,6 @@
 package ru.hse.java.network.benchmark.config;
 
-public class BenchmarkConfigException extends Exception {
+public final class BenchmarkConfigException extends Exception {
 
     public BenchmarkConfigException() {
     }

@@ -16,8 +16,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class BlockingServer extends AbstractBenchmarkServer {
 
-    private final ExecutorService acceptClientsService = Executors.newSingleThreadExecutor();
-
     public BlockingServer(int benchmarkClientsNumber) {
         super(benchmarkClientsNumber);
     }
@@ -55,7 +53,7 @@ public final class BlockingServer extends AbstractBenchmarkServer {
         closeClientHandlers();
     }
 
-    private class ClientHandler extends AbstractClientHandler {
+    private final class ClientHandler extends AbstractClientHandler {
 
         private final SocketChannel socketChannel;
         public final ExecutorService requestReader = Executors.newSingleThreadExecutor();
@@ -107,7 +105,7 @@ public final class BlockingServer extends AbstractBenchmarkServer {
             }
         }
 
-        private class ReadRequestsTask implements Runnable {
+        private final class ReadRequestsTask implements Runnable {
 
             private final ByteBuffer querySizeBuffer = ByteBuffer.allocate(Integer.BYTES);
             private final ByteBuffer queryBuffer = ByteBuffer.allocate(Query.getMaxSizeInBytes());

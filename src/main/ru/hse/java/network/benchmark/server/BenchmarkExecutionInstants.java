@@ -4,7 +4,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.time.Instant;
 
-public class BenchmarkExecutionInstants {
+public final class BenchmarkExecutionInstants {
     private final Instant startInstant;
     private final Instant finishInstant;
 
