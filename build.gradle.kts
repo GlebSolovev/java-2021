@@ -14,7 +14,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.9.9") // parse json
     implementation("commons-io:commons-io:2.6") // file utils
 //    implementation("com.google.protobuf:protobuf-gradle-plugin:0.8.16") // gradle compile google protocol buffers
-//    implementation("com.google.protobuf:protobuf-java:3.17.0") // google protocol buffers
+    implementation("com.google.protobuf:protobuf-java:3.17.0") // google protocol buffers
     implementation("org.jetbrains:annotations:16.0.2")
     testImplementation(platform("org.junit:junit-bom:5.7.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")

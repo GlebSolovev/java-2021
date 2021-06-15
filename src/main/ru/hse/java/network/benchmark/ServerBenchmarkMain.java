@@ -7,6 +7,7 @@ import ru.hse.java.network.benchmark.config.BenchmarkConfig;
 import ru.hse.java.network.benchmark.config.BenchmarkConfigException;
 import ru.hse.java.network.benchmark.server.AbstractBenchmarkServer;
 import ru.hse.java.network.benchmark.server.BenchmarkExecutionInstants;
+import ru.hse.java.network.benchmark.server.BenchmarkServerExecutionException;
 import ru.hse.java.network.benchmark.server.impl.AsynchronousServer;
 import ru.hse.java.network.benchmark.server.impl.BlockingServer;
 import ru.hse.java.network.benchmark.server.impl.NonBlockingServer;
@@ -72,7 +73,13 @@ public final class ServerBenchmarkMain {
             for (Client client : clients) {
                 client.start();
             }
-            QueryAverageTimeStatistics queryAverageTimeStatistics = collectStatistics(server, clients);
+            QueryAverageTimeStatistics queryAverageTimeStatistics = null;
+            try {
+                queryAverageTimeStatistics = collectStatistics(server, clients);
+            } catch (BenchmarkServerExecutionException serverExecutionException) {
+                System.err.println("Server execution failed: " + serverExecutionException);
+                System.exit(FAIL_RETURN_CODE);
+            }
             outputFileLines.add(
                     benchmarkExecutionParameters.getChangingParameterValue() + "," + queryAverageTimeStatistics.getServerSideTimeMillis() + "," + queryAverageTimeStatistics.getClientSideTimeMillis());
         }
@@ -89,7 +96,7 @@ public final class ServerBenchmarkMain {
 
     private static @NotNull QueryAverageTimeStatistics collectStatistics(
             @NotNull AbstractBenchmarkServer server,
-            @NotNull List<@NotNull Client> clients) throws InterruptedException {
+            @NotNull List<@NotNull Client> clients) throws InterruptedException, BenchmarkServerExecutionException {
         BenchmarkExecutionInstants instants = server.awaitBenchmarkFinish();
         long serverSideAverageTimeMillis = server.getQueryAverageServerSideTimeMillisFromRange(
                 instants.getStartInstant(), instants.getFinishInstant());

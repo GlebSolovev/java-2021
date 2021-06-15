@@ -6,7 +6,6 @@ import ru.hse.java.network.benchmark.server.AbstractBenchmarkServer;
 import ru.hse.java.network.benchmark.server.AbstractClientHandler;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.concurrent.TimeUnit;
@@ -23,8 +22,7 @@ public final class AsynchronousServer extends AbstractBenchmarkServer {
     @Override
     public void start() throws IOException {
         isWorking.set(true);
-        AsynchronousServerSocketChannel asynchronousServerSocketChannel = AsynchronousServerSocketChannel.open();
-        asynchronousServerSocketChannel.bind(new InetSocketAddress(PORT));
+        AsynchronousServerSocketChannel asynchronousServerSocketChannel = openAndBindAsynchronousServerSocketChannel();
         asynchronousServerSocketChannel.accept(0L, new CompletionHandler<>() {
             @Override
             public void completed(
@@ -42,7 +40,7 @@ public final class AsynchronousServer extends AbstractBenchmarkServer {
                     try {
                         asynchronousServerSocketChannel.close();
                     } catch (IOException ioException) {
-                        throw new RuntimeException("asynchronousServerSocketChannel close failed", ioException);
+                        terminate(ioException);
                     }
                 } else if (isWorking.get()) {
                     asynchronousServerSocketChannel.accept(acceptedClientsNumber, this);
@@ -54,9 +52,9 @@ public final class AsynchronousServer extends AbstractBenchmarkServer {
                 try {
                     asynchronousServerSocketChannel.close();
                 } catch (IOException ioException) {
-                    throw new RuntimeException("asynchronousServerSocketChannel close failed", ioException);
+                    throwable.addSuppressed(ioException);
                 }
-                finishBenchmark(); // TODO: abort
+                terminate((Exception) throwable);
             }
         });
     }
@@ -92,7 +90,7 @@ public final class AsynchronousServer extends AbstractBenchmarkServer {
             try {
                 asynchronousSocketChannel.close();
             } catch (IOException ioException) {
-                throw new RuntimeException("ClientHandler close failed", ioException);
+                terminate(ioException);
             }
         }
 

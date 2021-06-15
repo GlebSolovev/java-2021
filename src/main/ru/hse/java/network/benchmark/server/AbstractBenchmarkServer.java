@@ -3,6 +3,9 @@ package ru.hse.java.network.benchmark.server;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.channels.AsynchronousServerSocketChannel;
+import java.nio.channels.ServerSocketChannel;
 import java.time.Instant;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
@@ -27,16 +30,20 @@ public abstract class AbstractBenchmarkServer {
 
     private Instant benchmarkStartInstant;
     private Instant benchmarkFinishInstant;
+    private Exception terminationCauseException;
 
     public AbstractBenchmarkServer(int benchmarkClientsNumber) {
         this.benchmarkClientsNumber = benchmarkClientsNumber;
     }
 
-    public final @NotNull BenchmarkExecutionInstants awaitBenchmarkFinish() throws InterruptedException {
+    public final @NotNull BenchmarkExecutionInstants awaitBenchmarkFinish() throws InterruptedException, BenchmarkServerExecutionException {
         finishLock.lock();
         try {
-            while (benchmarkFinishInstant == null) {
+            while (benchmarkFinishInstant == null && terminationCauseException == null) {
                 benchmarkHasFinishedCondition.await();
+            }
+            if (terminationCauseException != null) {
+                throw new BenchmarkServerExecutionException(terminationCauseException);
             }
         } finally {
             finishLock.unlock();
@@ -51,7 +58,7 @@ public abstract class AbstractBenchmarkServer {
     protected final void finishBenchmark() {
         finishLock.lock();
         try {
-            if(benchmarkFinishInstant != null) {
+            if (benchmarkFinishInstant != null) {
                 return;
             }
             benchmarkFinishInstant = Instant.now();
@@ -60,6 +67,22 @@ public abstract class AbstractBenchmarkServer {
         } finally {
             finishLock.unlock();
         }
+    }
+
+    protected final void terminate(@NotNull Exception causeException) {
+        finishLock.lock();
+        try {
+            if(terminationCauseException != null) {
+                terminationCauseException.addSuppressed(causeException);
+                return;
+            }
+            terminationCauseException = causeException;
+            benchmarkHasFinishedCondition.signal();
+            shutdown();
+        } finally {
+            finishLock.unlock();
+        }
+
     }
 
     protected final void registerClientHandler(@NotNull AbstractClientHandler clientHandler) {
@@ -80,6 +103,44 @@ public abstract class AbstractBenchmarkServer {
                                                                                                    rangeToInstant);
         }
         return queriesInRangeAverageTimeMillisSum / clientHandlers.size();
+    }
+
+    protected @NotNull ServerSocketChannel openAndBindServerSocketChannel()  throws IOException {
+        ServerSocketChannel serverSocketChannel = null;
+        try{
+            serverSocketChannel = ServerSocketChannel.open();
+            serverSocketChannel.socket().bind(new InetSocketAddress(PORT));
+        } catch (IOException ioException) {
+            try {
+                if(serverSocketChannel != null) {
+                    serverSocketChannel.close();
+                }
+            } catch (IOException closeChannelIOException) {
+                ioException.addSuppressed(closeChannelIOException);
+            }
+            terminate(ioException);
+            throw ioException;
+        }
+        return serverSocketChannel;
+    }
+
+    protected @NotNull AsynchronousServerSocketChannel openAndBindAsynchronousServerSocketChannel()  throws IOException {
+        AsynchronousServerSocketChannel asynchronousServerSocketChannel = null;
+        try{
+            asynchronousServerSocketChannel = AsynchronousServerSocketChannel.open();
+            asynchronousServerSocketChannel.bind(new InetSocketAddress(PORT));
+        } catch (IOException ioException) {
+            try {
+                if(asynchronousServerSocketChannel != null) {
+                    asynchronousServerSocketChannel.close();
+                }
+            } catch (IOException closeChannelIOException) {
+                ioException.addSuppressed(closeChannelIOException);
+            }
+            terminate(ioException);
+            throw ioException;
+        }
+        return asynchronousServerSocketChannel;
     }
 
     public abstract void start() throws IOException;

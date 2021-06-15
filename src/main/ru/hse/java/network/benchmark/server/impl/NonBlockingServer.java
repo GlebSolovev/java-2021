@@ -6,7 +6,6 @@ import ru.hse.java.network.benchmark.server.AbstractBenchmarkServer;
 import ru.hse.java.network.benchmark.server.AbstractClientHandler;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
 import java.util.Iterator;
@@ -29,10 +28,14 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
     @Override
     public void start() throws IOException {
         isWorking.set(true);
-        ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
-        serverSocketChannel.socket().bind(new InetSocketAddress(PORT));
-        requestReader.start();
-        responseWriter.start();
+        try {
+            requestReader.start();
+            responseWriter.start();
+        } catch (IOException ioException) {
+            terminate(ioException);
+            throw ioException;
+        }
+        ServerSocketChannel serverSocketChannel = openAndBindServerSocketChannel();
         acceptClientsService.submit(() -> acceptClients(serverSocketChannel));
     }
 
@@ -60,7 +63,7 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
                 requestReader.registerClientHandler(clientHandler);
             }
         } catch (IOException ioException) {
-            finishBenchmark();
+            terminate(ioException);
         }
     }
 
@@ -122,16 +125,20 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
                     selector.close();
                 }
             } catch (IOException ioException) {
-                throw new RuntimeException("SelectorThread close failed", ioException);
+                terminate(ioException);
             }
         }
 
         private void processChannels() {
-            try {
-                while (working.get()) {
+            while (working.get()) {
+                try {
                     selector.select();
-                    Set<SelectionKey> selectedKeys = selector.selectedKeys();
-                    Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
+                } catch (IOException ioException) {
+                    terminate(ioException);
+                }
+                Set<SelectionKey> selectedKeys = selector.selectedKeys();
+                Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
+                try {
                     while (keyIterator.hasNext()) {
                         SelectionKey selectedKey = keyIterator.next();
                         processSelectedKey(selectedKey);
@@ -140,9 +147,9 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
                     while (!clientHandlersToRegister.isEmpty()) {
                         clientHandlersToRegister.poll().registerSocketChannel(selector, interestSet);
                     }
+                } catch (IOException exception) {
+                    finishBenchmark();
                 }
-            } catch (IOException exception) {
-                finishBenchmark();
             }
         }
 
@@ -175,7 +182,7 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
             try {
                 socketChannel.close();
             } catch (IOException ioException) {
-                throw new RuntimeException("ClientHandler close failed", ioException);
+                terminate(ioException);
             }
         }
 

@@ -6,7 +6,6 @@ import ru.hse.java.network.benchmark.server.AbstractBenchmarkServer;
 import ru.hse.java.network.benchmark.server.AbstractClientHandler;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
@@ -25,8 +24,7 @@ public final class BlockingServer extends AbstractBenchmarkServer {
     @Override
     public void start() throws IOException {
         isWorking.set(true);
-        ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
-        serverSocketChannel.socket().bind(new InetSocketAddress(PORT));
+        ServerSocketChannel serverSocketChannel = openAndBindServerSocketChannel();
         acceptClientsService.submit(() -> acceptClients(serverSocketChannel));
     }
 
@@ -43,7 +41,7 @@ public final class BlockingServer extends AbstractBenchmarkServer {
                 clientHandler.start();
             }
         } catch (IOException ioException) {
-            finishBenchmark();
+            terminate(ioException);
         }
     }
 
@@ -58,10 +56,10 @@ public final class BlockingServer extends AbstractBenchmarkServer {
     private final class ClientHandler extends AbstractClientHandler {
 
         private final SocketChannel socketChannel;
+        private final AtomicBoolean working = new AtomicBoolean(false);
+
         public final ExecutorService requestReader = Executors.newSingleThreadExecutor();
         public final ExecutorService responseWriter = Executors.newSingleThreadExecutor();
-
-        private final AtomicBoolean working = new AtomicBoolean(false);
 
         public ClientHandler(@NotNull SocketChannel socketChannel) {
             this.socketChannel = socketChannel;
@@ -81,7 +79,7 @@ public final class BlockingServer extends AbstractBenchmarkServer {
             try {
                 socketChannel.close();
             } catch (IOException ioException) {
-                throw new RuntimeException("ClientHandler close failed", ioException);
+                terminate(ioException);
             }
         }
 
