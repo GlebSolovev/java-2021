@@ -45,7 +45,6 @@ public final class Client extends AbstractClientHandler {
     @Override
     public void start() {
         isWorking.set(true);
-        System.out.println("started");
         connectService.submit(this::connectToServer);
     }
 
@@ -62,7 +61,6 @@ public final class Client extends AbstractClientHandler {
         } catch (IOException ioException) {
             System.err.println("Client socketChannel close failed: " + ioException);
         }
-        System.out.println("client closed");
     }
 
     private void finishBenchmark() {
@@ -86,7 +84,6 @@ public final class Client extends AbstractClientHandler {
             System.err.println("Client connectToServer failed: " + ioException);
             return;
         }
-        System.out.println("client connected");
         requestsWriter.schedule(new WriteRequestTask(),
                                 requestsDeltaMillis, TimeUnit.MILLISECONDS);
         responseReader.submit(new ReadResponsesTask());
@@ -111,7 +108,6 @@ public final class Client extends AbstractClientHandler {
             query.serializeTo(byteBuffer);
             byteBuffer.flip();
 
-            System.out.println("start writing query " + query.getId());
             try {
                 while (byteBuffer.hasRemaining() && isWorking.get()) {
                     socketChannel.write(byteBuffer);
@@ -121,7 +117,6 @@ public final class Client extends AbstractClientHandler {
                 return;
             }
             writtenRequestsNumber.incrementAndGet();
-            System.out.println("finish writing query " + query.getId());
 
             sortArray(query.getArray());
             correctQueriesAnswers.put(query.getId(), query.getArray());
@@ -142,7 +137,6 @@ public final class Client extends AbstractClientHandler {
         public void run() {
             long readResponsesNumber = 0;
             while (isWorking.get()) {
-                System.out.println("start reading query");
                 Query query;
                 try {
                     ByteBuffer querySizeBuffer = ByteBuffer.allocate(Integer.BYTES);
@@ -159,13 +153,12 @@ public final class Client extends AbstractClientHandler {
                     finishBenchmark();
                     return;
                 }
-                System.out.println("finish reading query " + query.getId());
                 checkResponseIsCorrect(query);
                 logQueryFinish(query.getId());
 
                 readResponsesNumber++;
                 if(readResponsesNumber == totalRequestsNumber) {
-                    System.out.println("client decided to finish");
+                    writeFinishBenchmarkRequest();
                     finishBenchmark();
                     return;
                 }
@@ -178,5 +171,19 @@ public final class Client extends AbstractClientHandler {
             throw new AssertionError("Arrays are not equal");
         }
         correctQueriesAnswers.remove(query.getId());
+    }
+
+    private void writeFinishBenchmarkRequest() {
+        ByteBuffer finishRequestBuffer = ByteBuffer.allocate(Integer.BYTES);
+        finishRequestBuffer.putInt(0); // query size 0 == finish benchmark request
+        finishRequestBuffer.flip();
+
+        try {
+            while (finishRequestBuffer.hasRemaining() && isWorking.get()) {
+                socketChannel.write(finishRequestBuffer);
+            }
+        } catch (IOException ioException) {
+            finishBenchmark();
+        }
     }
 }

@@ -102,41 +102,45 @@ public final class AsynchronousServer extends AbstractBenchmarkServer {
         private final class RequestsReader {
 
             private final ByteBuffer querySizeBuffer = ByteBuffer.allocate(Integer.BYTES);
-            private final ByteBuffer queryBuffer = ByteBuffer.allocate(Query.getMaxSizeInBytes());
-            private final ByteBuffer[] buffers = {querySizeBuffer, queryBuffer};
+            private ByteBuffer queryBuffer;
 
             public void startAsynchronousRead() {
-                asynchronousSocketChannel.read(buffers, 0, buffers.length, IO_OPERATION_TIMEOUT_MILLIS,
-                                               TimeUnit.MILLISECONDS, null, new CompletionHandler<Long, Void>() {
+                asynchronousSocketChannel.read(querySizeBuffer, IO_OPERATION_TIMEOUT_MILLIS,
+                                               TimeUnit.MILLISECONDS, null, new CompletionHandler<Integer, Integer>() {
                             @Override
-                            public void completed(Long readBytes, Void unused) {
-                                Query query = parseFrom(buffers);
+                            public void completed(Integer readBytes, Integer querySize) {
+                                if (querySize == null) {
+                                    querySizeBuffer.flip();
+                                    querySize = querySizeBuffer.getInt();
+                                    querySizeBuffer.clear();
+                                    if (querySize == 0) { // query size == 0 => finish benchmark request
+                                        finishBenchmark();
+                                        return;
+                                    }
+                                    queryBuffer = ByteBuffer.allocate(querySize);
+                                    if (working.get()) {
+                                        asynchronousSocketChannel.read(queryBuffer, IO_OPERATION_TIMEOUT_MILLIS,
+                                                                       TimeUnit.MILLISECONDS, querySize, this);
+                                    }
+                                    return;
+                                }
+
+                                queryBuffer.flip();
+                                Query query = Query.parseFrom(queryBuffer, querySize);
                                 logQueryStart(query.getId());
                                 workersThreadPool.submit(() -> processQuery(query));
+
                                 if (working.get()) {
-                                    asynchronousSocketChannel.read(buffers, 0, buffers.length,
-                                                                   IO_OPERATION_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS,
-                                                                   null, this);
+                                    asynchronousSocketChannel.read(querySizeBuffer, IO_OPERATION_TIMEOUT_MILLIS,
+                                                                   TimeUnit.MILLISECONDS, null, this);
                                 }
                             }
 
                             @Override
-                            public void failed(Throwable throwable, Void unused) {
+                            public void failed(Throwable throwable, Integer querySize) {
                                 finishBenchmark();
                             }
                         });
-            }
-
-            private @NotNull Query parseFrom(@NotNull ByteBuffer[] buffers) {
-                buffers[0].flip();
-                int querySize = buffers[0].getInt();
-
-                buffers[1].flip();
-                Query query = Query.parseFrom(buffers[1], querySize);
-
-                buffers[0].clear();
-                buffers[1].compact();
-                return query;
             }
         }
 

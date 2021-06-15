@@ -1,0 +1,1 @@
+{"configName":"asynchronous","serverArchitecture":"ASYNCHRONOUS","oneClientTotalRequestsNumber":10,"changingParameter":{"type":"NUMBER_OF_SIMULTANEOUSLY_WORKING_CLIENTS","from":1,"to":5,"step":1},"arraysToSortLength":100,"numberOfSimultaneouslyWorkingClients":-1,"clientRequestsTimeDeltaMillis":100}

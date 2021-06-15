@@ -207,7 +207,7 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
         private final class RequestsReader {
 
             private final ByteBuffer querySizeBuffer = ByteBuffer.allocate(Integer.BYTES);
-            private final ByteBuffer queryBuffer = ByteBuffer.allocate(Query.getMaxSizeInBytes());
+            private ByteBuffer queryBuffer;
             int messageSize = -1;
             int queryBufferBytesNumber = 0;
 
@@ -221,15 +221,21 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
                     querySizeBuffer.flip();
                     messageSize = querySizeBuffer.getInt();
                     querySizeBuffer.clear();
+                    if(messageSize == 0) { // query size == 0 => finish benchmark request
+                        finishBenchmark();
+                        return;
+                    }
+                    queryBuffer = ByteBuffer.allocate(messageSize);
                     return;
                 }
 
                 queryBufferBytesNumber += socketChannel.read(queryBuffer);
-                if (queryBufferBytesNumber >= messageSize) {
+                if (queryBufferBytesNumber == messageSize) {
                     queryBuffer.flip();
                     Query query = Query.parseFrom(queryBuffer, messageSize);
                     queryBufferBytesNumber -= messageSize;
-                    queryBuffer.compact();
+                    messageSize = -1;
+                    queryBuffer = null;
 
                     logQueryStart(query.getId());
                     workersThreadPool.submit(() -> processQuery(query));

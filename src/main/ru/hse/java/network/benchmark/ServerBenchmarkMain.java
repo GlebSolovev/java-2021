@@ -21,7 +21,7 @@ import java.util.List;
 public final class ServerBenchmarkMain {
 
     public static void main(String[] args) throws InterruptedException {
-        final int FAIL_RETURN_CODE = 1;
+        final int FAIL_RETURN_CODE = 0;
         if (args.length != 1) {
             System.err.println("One argument required: benchmark config filename");
             System.exit(FAIL_RETURN_CODE);
@@ -73,7 +73,6 @@ public final class ServerBenchmarkMain {
             for (Client client : clients) {
                 client.start();
             }
-            System.out.println("waiting");
             QueryAverageTimeStatistics queryAverageTimeStatistics = null;
             try {
                 queryAverageTimeStatistics = collectStatistics(server, clients);
