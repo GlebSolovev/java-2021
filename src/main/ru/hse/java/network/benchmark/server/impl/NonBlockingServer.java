@@ -18,6 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class NonBlockingServer extends AbstractBenchmarkServer {
 
+    private final ExecutorService acceptClientsService = Executors.newSingleThreadExecutor();
     private final ReaderSelectorThread requestReader = new ReaderSelectorThread();
     private final WriterSelectorThread responseWriter = new WriterSelectorThread();
 

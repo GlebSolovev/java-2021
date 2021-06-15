@@ -7,6 +7,7 @@ import ru.hse.java.network.benchmark.config.BenchmarkConfig;
 import ru.hse.java.network.benchmark.config.BenchmarkConfigException;
 import ru.hse.java.network.benchmark.server.AbstractBenchmarkServer;
 import ru.hse.java.network.benchmark.server.BenchmarkExecutionInstants;
+import ru.hse.java.network.benchmark.server.impl.AsynchronousServer;
 import ru.hse.java.network.benchmark.server.impl.BlockingServer;
 import ru.hse.java.network.benchmark.server.impl.NonBlockingServer;
 
@@ -38,7 +39,7 @@ public final class ServerBenchmarkMain {
         outputFileLines.add(benchmarkConfig.getChangingParameterTitle() + ",server-side,client-side");
         for (BenchmarkConfig.BenchmarkExecutionParameters benchmarkExecutionParameters : benchmarkConfig) {
             final int clientsNumber = benchmarkExecutionParameters.getNumberOfSimultaneouslyWorkingClients();
-            AbstractBenchmarkServer server = null;
+            AbstractBenchmarkServer server;
             switch (benchmarkExecutionParameters.getServerArchitecture()) {
                 case BLOCKING:
                     server = new BlockingServer(clientsNumber);
@@ -47,13 +48,12 @@ public final class ServerBenchmarkMain {
                     server = new NonBlockingServer(clientsNumber);
                     break;
                 case ASYNCHRONOUS:
-//                    server = new AsynchronousServer(clientsNumber);
+                    server = new AsynchronousServer(clientsNumber);
                     break;
                 default:
                     throw new IllegalStateException("Illegal server architecture type");
             }
             try {
-                assert server != null;
                 server.start();
             } catch (IOException ioException) {
                 System.err.println("Failed to start server: " + ioException.getMessage());
@@ -95,7 +95,8 @@ public final class ServerBenchmarkMain {
                 instants.getStartInstant(), instants.getFinishInstant());
         long clientSideAverageTimeMillisSum = 0;
         for (Client client : clients) {
-            clientSideAverageTimeMillisSum += client.getQueryAverageTimeMillisFromRange(instants.getStartInstant(), instants.getFinishInstant());
+            clientSideAverageTimeMillisSum += client.getQueryAverageTimeMillisFromRange(instants.getStartInstant(),
+                                                                                        instants.getFinishInstant());
         }
         return new QueryAverageTimeStatistics(serverSideAverageTimeMillis,
                                               clientSideAverageTimeMillisSum / clients.size());

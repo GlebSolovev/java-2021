@@ -18,7 +18,6 @@ public abstract class AbstractBenchmarkServer {
     private final static int WORKER_THREAD_POOL_THREADS_NUMBER = Runtime.getRuntime().availableProcessors() - 2;
 
     protected final int benchmarkClientsNumber;
-    protected final ExecutorService acceptClientsService = Executors.newSingleThreadExecutor();
     protected final ExecutorService workersThreadPool = Executors.newFixedThreadPool(WORKER_THREAD_POOL_THREADS_NUMBER);
     protected final AtomicBoolean isWorking = new AtomicBoolean(false);
     protected final ConcurrentLinkedDeque<AbstractClientHandler> clientHandlers = new ConcurrentLinkedDeque<>();

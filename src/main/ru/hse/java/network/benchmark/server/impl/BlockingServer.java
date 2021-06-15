@@ -16,6 +16,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class BlockingServer extends AbstractBenchmarkServer {
 
+    private final ExecutorService acceptClientsService = Executors.newSingleThreadExecutor();
+
     public BlockingServer(int benchmarkClientsNumber) {
         super(benchmarkClientsNumber);
     }
