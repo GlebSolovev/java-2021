@@ -1,230 +1,171 @@
 package ru.hse.java.network.benchmark.client;
 
 import org.jetbrains.annotations.NotNull;
-import ru.hse.java.network.benchmark.protocol.ClientToServerMessage;
-import ru.hse.java.network.benchmark.protocol.ServerToClientMessage;
+import ru.hse.java.network.benchmark.protocol.Query;
+import ru.hse.java.network.benchmark.server.AbstractClientHandler;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
-public class Client {
+public final class Client extends AbstractClientHandler {
+
     private final long totalRequestsNumber;
     private final int arraysToSortLength;
     private final long requestsDeltaMillis;
+    private final InetSocketAddress serverSocketAddress;
 
-    private final InetSocketAddress serverInetSocketAddress;
     private SocketChannel socketChannel;
-    ConcurrentHashMap<Long, QueryInfo> queries = new ConcurrentHashMap<>();
-    private final AtomicBoolean sortArrayTasksAreFinished = new AtomicBoolean(false);
+    private final ConcurrentHashMap<Long, int[]> correctQueriesAnswers = new ConcurrentHashMap<>();
+
+    private final Lock finishLock = new ReentrantLock();
+    private final AtomicBoolean isWorking = new AtomicBoolean(false);
 
     private final ExecutorService connectService = Executors.newSingleThreadExecutor();
     private final ScheduledExecutorService requestsWriter = Executors.newSingleThreadScheduledExecutor();
     private final ExecutorService responseReader = Executors.newSingleThreadExecutor();
-    private final ExecutorService sendStatisticsService = Executors.newSingleThreadExecutor();
 
     public Client(
             long totalRequestsNumber, int arraysToSortLength, long requestsDeltaMillis,
-            @NotNull InetSocketAddress serverInetSocketAddress) {
+            @NotNull InetSocketAddress serverSocketAddress) {
         this.totalRequestsNumber = totalRequestsNumber;
         this.arraysToSortLength = arraysToSortLength;
         this.requestsDeltaMillis = requestsDeltaMillis;
-        this.serverInetSocketAddress = serverInetSocketAddress;
+        this.serverSocketAddress = serverSocketAddress;
     }
 
+    @Override
     public void start() {
-        connectService.submit((Callable<Void>) () -> {
-            socketChannel = SocketChannel.open();
-            socketChannel.configureBlocking(true);
-            try {
-                socketChannel.connect(serverInetSocketAddress);
-                requestsWriter.schedule(new WriteRequestTask(), requestsDeltaMillis, TimeUnit.MILLISECONDS);
-                responseReader.submit(new ReadResponseTask());
-            } catch (Exception exception) {
-                shutdownClient();
-                throw exception;
-            }
-            return null;
-        });
+        isWorking.set(true);
+        connectService.submit(this::connectToServer);
     }
 
-    private void shutdownSortArrayTasksAndStartSendStatisticsConnection() throws IOException {
+    @Override
+    public void close() {
+        isWorking.set(false);
         connectService.shutdownNow();
         requestsWriter.shutdownNow();
         responseReader.shutdownNow();
-        assert socketChannel != null;
-        socketChannel.close();
-        sendStatisticsService.submit(new SendStatisticsTask());
-    }
-
-    private void shutdownClient() throws IOException {
-        connectService.shutdownNow();
-        requestsWriter.shutdownNow();
-        responseReader.shutdownNow();
-        sendStatisticsService.shutdownNow();
-        if (socketChannel != null) {
+        try {
             socketChannel.close();
+        } catch (IOException ioException) {
+            throw new RuntimeException("Client close failed", ioException);
         }
     }
 
-    private class WriteRequestTask implements Callable<Void> {
+    private void finishBenchmark() {
+        finishLock.lock();
+        try {
+            if (!isWorking.get()) {
+                return;
+            }
+            close();
+        } finally {
+            finishLock.unlock();
+        }
+    }
+
+    private void connectToServer() {
+        try {
+            socketChannel = SocketChannel.open();
+            socketChannel.connect(serverSocketAddress);
+        } catch (IOException ioException) {
+            close();
+            throw new RuntimeException("Client connectToServer failed", ioException);
+        }
+        requestsWriter.schedule(new WriteRequestTask(),
+                                requestsDeltaMillis, TimeUnit.MILLISECONDS);
+        responseReader.submit(new ReadResponsesTask());
+    }
+
+    private class WriteRequestTask implements Runnable {
 
         private final AtomicLong writtenRequestsNumber = new AtomicLong(0);
         private final Random random = new Random();
-        private final ByteBuffer byteBuffer = ByteBuffer.allocate(
-                Integer.BYTES + ClientToServerMessage.getMaxSizeInBytes(
-                        ClientToServerMessage.MessageType.SORT_ARRAY_REQUEST));
+        private final ByteBuffer byteBuffer = ByteBuffer.allocate(Integer.BYTES + Query.getMaxSizeInBytes());
 
         @Override
-        public Void call() throws Exception {
-            try {
-                if (writtenRequestsNumber.get() != totalRequestsNumber - 1) {
-                    requestsWriter.schedule(this, requestsDeltaMillis, TimeUnit.MILLISECONDS);
-                }
-                ClientToServerMessage message = generateSortArrayRequestMessage();
-                queries.put(message.getTaskId(), new QueryInfo(message.getArrayToSort(), Instant.now()));
-
-                byteBuffer.clear();
-                byteBuffer.putInt(message.getSizeInBytes());
-                message.serializeTo(byteBuffer);
-                byteBuffer.flip();
-                try {
-                    while (byteBuffer.hasRemaining()) {
-                        socketChannel.write(byteBuffer);
-                    }
-                } catch (IOException ioException) {
-                    if (sortArrayTasksAreFinished.compareAndSet(false, true)) {
-                        shutdownSortArrayTasksAndStartSendStatisticsConnection();
-                    }
-                    return null;
-                }
-                writtenRequestsNumber.incrementAndGet();
-            } catch (Exception exception) {
-                shutdownClient();
-                throw exception;
+        public void run() {
+            if (isWorking.get() && writtenRequestsNumber.get() != totalRequestsNumber - 1) {
+                requestsWriter.schedule(this, requestsDeltaMillis, TimeUnit.MILLISECONDS);
             }
-            return null;
+            Query query = generateQuery();
+            logQueryStart(query.getId());
+
+            byteBuffer.clear();
+            byteBuffer.putInt(query.getSizeInBytes());
+            query.serializeTo(byteBuffer);
+            byteBuffer.flip();
+
+            try {
+                while (byteBuffer.hasRemaining() && isWorking.get()) {
+                    socketChannel.write(byteBuffer);
+                }
+            } catch (IOException ioException) {
+                finishBenchmark();
+                return;
+            }
+            writtenRequestsNumber.incrementAndGet();
+
+            sortArray(query.getArray());
+            correctQueriesAnswers.put(query.getId(), query.getArray());
         }
 
-        private ClientToServerMessage generateSortArrayRequestMessage() {
+        private @NotNull Query generateQuery() {
             int[] arrayToSort = new int[arraysToSortLength];
             for (int i = 0; i < arraysToSortLength; i++) {
                 arrayToSort[i] = random.nextInt();
             }
-            return new ClientToServerMessage(ClientToServerMessage.MessageType.SORT_ARRAY_REQUEST,
-                                             writtenRequestsNumber.get(), arrayToSort);
+            return new Query(writtenRequestsNumber.get(), arrayToSort);
         }
     }
 
-    private class ReadResponseTask implements Callable<Void> {
-        AtomicLong completedQueriesNumber = new AtomicLong(0);
-        private final ByteBuffer messageSizeByteBuffer = ByteBuffer.allocate(Integer.BYTES);
-        private final ByteBuffer messageByteBuffer = ByteBuffer.allocate(ServerToClientMessage.getMaxSizeInBytes(
-                ServerToClientMessage.MessageType.SORT_ARRAY_RESPONSE));
-        private final ByteBuffer[] bufferArray = {messageSizeByteBuffer, messageByteBuffer};
+    private class ReadResponsesTask implements Runnable {
+
+        private final ByteBuffer querySizeBuffer = ByteBuffer.allocate(Integer.BYTES);
+        private final ByteBuffer queryBuffer = ByteBuffer.allocate(Query.getMaxSizeInBytes());
+        private final ByteBuffer[] buffers = {querySizeBuffer, queryBuffer};
 
         @Override
-        public Void call() throws Exception {
-            try {
-                socketChannel.read(bufferArray);
-
-                messageSizeByteBuffer.flip();
-                messageByteBuffer.flip();
-                int messageSize = messageSizeByteBuffer.getInt();
-                ServerToClientMessage message = ServerToClientMessage.parseFrom(messageByteBuffer, messageSize);
-                assert message.getMessageType().equals(ServerToClientMessage.MessageType.SORT_ARRAY_RESPONSE);
-
-                QueryInfo queryInfo = queries.get(message.getTaskId());
-                assert !queryInfo.isCompleted();
-                queryInfo.setQueryCompletedAt(Instant.now());
-                checkResponseIsCorrect(queryInfo, message);
-                queryInfo.clearArrayToSort();
-                completedQueriesNumber.incrementAndGet();
-
-                messageSizeByteBuffer.clear();
-                messageByteBuffer.compact();
-
-                if (completedQueriesNumber.get() == totalRequestsNumber) {
-                    if (sortArrayTasksAreFinished.compareAndSet(false, true)) {
-                        shutdownSortArrayTasksAndStartSendStatisticsConnection();
-                    }
-                    return null;
+        public void run() {
+            while (isWorking.get()) {
+                try {
+                    socketChannel.read(buffers);
+                } catch (IOException ioException) {
+                    finishBenchmark();
+                    return;
                 }
-                responseReader.submit(this);
-            } catch (Exception exception) {
-                shutdownClient();
-                throw exception;
+                Query query = parseFrom(buffers);
+                checkResponseIsCorrect(query);
+                logQueryFinish(query.getId());
             }
-            return null;
         }
 
-        private void checkResponseIsCorrect(@NotNull QueryInfo queryInfo, @NotNull ServerToClientMessage message) {
-            Arrays.sort(queryInfo.getArrayToSort());
-            if (!Arrays.equals(queryInfo.getArrayToSort(), message.getSortedArray())) {
-                throw new IllegalStateException("array is not sorted correctly");
-            }
+        private @NotNull Query parseFrom(@NotNull ByteBuffer[] buffers) {
+            buffers[0].flip();
+            int querySize = buffers[0].getInt();
+
+            buffers[1].flip();
+            Query query = Query.parseFrom(buffers[1], querySize);
+
+            buffers[0].clear();
+            buffers[1].compact();
+            return query;
         }
     }
 
-    private class SendStatisticsTask implements Callable<Void> {
-
-        @Override
-        public Void call() throws Exception {
-            socketChannel = SocketChannel.open();
-            socketChannel.configureBlocking(true);
-            try (SocketChannel ignored = socketChannel) {
-                socketChannel.connect(serverInetSocketAddress);
-
-                // read query statistics request
-                ByteBuffer messageSizeByteBuffer = ByteBuffer.allocate(Integer.BYTES);
-                ByteBuffer messageByteBuffer = ByteBuffer.allocate(ServerToClientMessage.getMaxSizeInBytes(
-                        ServerToClientMessage.MessageType.QUERY_STATISTICS_REQUEST));
-                ByteBuffer[] bufferArray = {messageSizeByteBuffer, messageByteBuffer};
-                socketChannel.read(bufferArray);
-                messageSizeByteBuffer.flip();
-                messageByteBuffer.flip();
-                int messageSize = messageSizeByteBuffer.getInt();
-                ServerToClientMessage requestMessage = ServerToClientMessage.parseFrom(messageByteBuffer, messageSize);
-                assert requestMessage.getMessageType().equals(
-                        ServerToClientMessage.MessageType.QUERY_STATISTICS_REQUEST);
-
-                // write query statistics response
-                long queryAverageTimeMillis = getQueryAverageTimeMillis(requestMessage.getFromInstant(),
-                                                                        requestMessage.getToInstant());
-                ByteBuffer byteBuffer = ByteBuffer.allocate(ClientToServerMessage.getMaxSizeInBytes(
-                        ClientToServerMessage.MessageType.QUERY_STATISTICS_RESPONSE) + Integer.BYTES);
-                ClientToServerMessage responseMessage = new ClientToServerMessage(
-                        ClientToServerMessage.MessageType.QUERY_STATISTICS_RESPONSE, queryAverageTimeMillis);
-                byteBuffer.putInt(responseMessage.getSizeInBytes());
-                responseMessage.serializeTo(byteBuffer);
-                byteBuffer.flip();
-                while (byteBuffer.hasRemaining()) {
-                    socketChannel.write(byteBuffer);
-                }
-            } finally {
-                sendStatisticsService.shutdownNow();
-            }
-            return null;
+    void checkResponseIsCorrect(@NotNull Query query) {
+        if (!Arrays.equals(correctQueriesAnswers.get(query.getId()), query.getArray())) {
+            throw new AssertionError("Arrays are not equal");
         }
-
-        private long getQueryAverageTimeMillis(@NotNull Instant fromInstant, @NotNull Instant toInstant) {
-            long overallTimeOfCompletedQueries = 0;
-            long numberOfCompletedQueries = 0;
-            for (QueryInfo queryInfo : queries.values()) {
-                if (queryInfo.isCompleted() && queryInfo.getCreatedInstant().isAfter(
-                        fromInstant) && queryInfo.getCompletedInstant().isBefore(toInstant)) {
-                    overallTimeOfCompletedQueries += queryInfo.getQueryTimeMillis();
-                    numberOfCompletedQueries++;
-                }
-            }
-            return overallTimeOfCompletedQueries / numberOfCompletedQueries;
-        }
+        correctQueriesAnswers.remove(query.getId());
     }
 }

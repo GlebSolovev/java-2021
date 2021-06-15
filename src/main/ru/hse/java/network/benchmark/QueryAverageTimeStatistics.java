@@ -1,4 +1,4 @@
-package ru.hse.java.network.benchmark.server;
+package ru.hse.java.network.benchmark;
 
 public class QueryAverageTimeStatistics {
     private final long serverSideTimeMillis;

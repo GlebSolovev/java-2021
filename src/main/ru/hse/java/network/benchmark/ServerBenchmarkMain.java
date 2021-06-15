@@ -1,14 +1,13 @@
 package ru.hse.java.network.benchmark;
 
 import org.apache.commons.io.FileUtils;
+import org.jetbrains.annotations.NotNull;
 import ru.hse.java.network.benchmark.client.Client;
 import ru.hse.java.network.benchmark.config.BenchmarkConfig;
 import ru.hse.java.network.benchmark.config.BenchmarkConfigException;
-import ru.hse.java.network.benchmark.server.QueryAverageTimeStatistics;
-import ru.hse.java.network.benchmark.server.Server;
-import ru.hse.java.network.benchmark.server.asynchronous.AsynchronousServer;
-import ru.hse.java.network.benchmark.server.blocking.BlockingServer;
-import ru.hse.java.network.benchmark.server.nonblocking.NonBlockingServer;
+import ru.hse.java.network.benchmark.server.AbstractBenchmarkServer;
+import ru.hse.java.network.benchmark.server.BenchmarkExecutionInstants;
+import ru.hse.java.network.benchmark.server.impl.BlockingServer;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,7 +17,7 @@ import java.util.List;
 
 public class ServerBenchmarkMain {
 
-    public static void main(String[] args) throws InterruptedException, IOException {
+    public static void main(String[] args) throws InterruptedException {
         final int FAIL_RETURN_CODE = 1;
         if (args.length != 1) {
             System.err.println("One argument required: benchmark config filename");
@@ -38,24 +37,31 @@ public class ServerBenchmarkMain {
         outputFileLines.add(benchmarkConfig.getChangingParameterTitle() + ",server-side,client-side");
         for (BenchmarkConfig.BenchmarkExecutionParameters benchmarkExecutionParameters : benchmarkConfig) {
             final int clientsNumber = benchmarkExecutionParameters.getNumberOfSimultaneouslyWorkingClients();
-            Server server;
+            AbstractBenchmarkServer server = null;
             switch (benchmarkExecutionParameters.getServerArchitecture()) {
                 case BLOCKING:
                     server = new BlockingServer(clientsNumber);
                     break;
                 case NON_BLOCKING:
-                    server = new NonBlockingServer(clientsNumber);
+//                    server = new NonBlockingServer(clientsNumber);
                     break;
                 case ASYNCHRONOUS:
-                    server = new AsynchronousServer(clientsNumber);
+//                    server = new AsynchronousServer(clientsNumber);
                     break;
                 default:
                     throw new IllegalStateException("Illegal server architecture type");
             }
-            server.start();
+            try {
+                assert server != null;
+                server.start();
+            } catch (IOException ioException) {
+                System.err.println("Failed to start server: " + ioException.getMessage());
+                System.exit(FAIL_RETURN_CODE);
+            }
 
             List<Client> clients = new ArrayList<>();
-            InetSocketAddress serverInetSocketAddress = new InetSocketAddress("localhost", Server.PORT);
+            InetSocketAddress serverInetSocketAddress = new InetSocketAddress("localhost",
+                                                                              AbstractBenchmarkServer.PORT);
             for (long i = 0; i < clientsNumber; i++) {
                 clients.add(new Client(benchmarkExecutionParameters.getOneClientTotalRequestsNumber(),
                                        benchmarkExecutionParameters.getArraysToSortLength(),
@@ -65,8 +71,7 @@ public class ServerBenchmarkMain {
             for (Client client : clients) {
                 client.start();
             }
-
-            QueryAverageTimeStatistics queryAverageTimeStatistics = server.getAverageQueryStatistics();
+            QueryAverageTimeStatistics queryAverageTimeStatistics = collectStatistics(server, clients);
             outputFileLines.add(
                     benchmarkExecutionParameters.getChangingParameterValue() + "," + queryAverageTimeStatistics.getServerSideTimeMillis() + "," + queryAverageTimeStatistics.getClientSideTimeMillis());
         }
@@ -79,5 +84,19 @@ public class ServerBenchmarkMain {
                     "Failed to write benchmark results to file " + outputFilePath + ": " + ioException.getMessage());
             System.exit(FAIL_RETURN_CODE);
         }
+    }
+
+    private static @NotNull QueryAverageTimeStatistics collectStatistics(
+            @NotNull AbstractBenchmarkServer server,
+            @NotNull List<@NotNull Client> clients) throws InterruptedException {
+        BenchmarkExecutionInstants instants = server.awaitBenchmarkFinish();
+        long serverSideAverageTimeMillis = server.getQueryAverageServerSideTimeMillisFromRange(
+                instants.getStartInstant(), instants.getFinishInstant());
+        long clientSideAverageTimeMillisSum = 0;
+        for (Client client : clients) {
+            clientSideAverageTimeMillisSum += client.getQueryAverageTimeMillisFromRange(instants.getStartInstant(), instants.getFinishInstant());
+        }
+        return new QueryAverageTimeStatistics(serverSideAverageTimeMillis,
+                                              clientSideAverageTimeMillisSum / clients.size());
     }
 }
