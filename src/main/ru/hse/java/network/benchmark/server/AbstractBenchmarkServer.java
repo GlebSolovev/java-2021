@@ -40,6 +40,7 @@ public abstract class AbstractBenchmarkServer {
         finishLock.lock();
         try {
             while (benchmarkFinishInstant == null && terminationCauseException == null) {
+                System.out.println("waiting for bechmark finish");
                 benchmarkHasFinishedCondition.await();
             }
             if (terminationCauseException != null) {
@@ -48,6 +49,7 @@ public abstract class AbstractBenchmarkServer {
         } finally {
             finishLock.unlock();
         }
+        System.out.println("finish benchmark waiting");
         return new BenchmarkExecutionInstants(benchmarkStartInstant, benchmarkFinishInstant);
     }
 
@@ -57,6 +59,7 @@ public abstract class AbstractBenchmarkServer {
 
     protected final void finishBenchmark() {
         finishLock.lock();
+        System.out.println("FINISH BENCHMARK START");
         try {
             if (benchmarkFinishInstant != null) {
                 return;
@@ -64,6 +67,7 @@ public abstract class AbstractBenchmarkServer {
             benchmarkFinishInstant = Instant.now();
             benchmarkHasFinishedCondition.signal();
             shutdown();
+            System.out.println("BENCHMARK FINISHED");
         } finally {
             finishLock.unlock();
         }
@@ -71,6 +75,7 @@ public abstract class AbstractBenchmarkServer {
 
     protected final void terminate(@NotNull Exception causeException) {
         finishLock.lock();
+        System.out.println("TERMINATE");
         try {
             if(terminationCauseException != null) {
                 terminationCauseException.addSuppressed(causeException);

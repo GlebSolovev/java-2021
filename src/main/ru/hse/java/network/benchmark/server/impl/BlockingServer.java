@@ -25,6 +25,7 @@ public final class BlockingServer extends AbstractBenchmarkServer {
     public void start() throws IOException {
         isWorking.set(true);
         ServerSocketChannel serverSocketChannel = openAndBindServerSocketChannel();
+        System.out.println("SERVER: server socket got");
         acceptClientsService.submit(() -> acceptClients(serverSocketChannel));
     }
 
@@ -33,12 +34,14 @@ public final class BlockingServer extends AbstractBenchmarkServer {
             for (int acceptedClientsNumber = 0; isWorking.get(); acceptedClientsNumber++) {
                 if (acceptedClientsNumber == benchmarkClientsNumber) {
                     startBenchmark();
+                    System.out.println("SERVER: benchmark started, all clients are active");
                     return;
                 }
                 SocketChannel socketChannel = serverSocketChannel.accept();
                 ClientHandler clientHandler = new ClientHandler(socketChannel);
                 registerClientHandler(clientHandler);
                 clientHandler.start();
+                System.out.println("SERVER: client accepted");
             }
         } catch (IOException ioException) {
             terminate(ioException);
@@ -67,6 +70,7 @@ public final class BlockingServer extends AbstractBenchmarkServer {
 
         @Override
         public void start() {
+            System.out.println("SERVER CLIENT: started");
             working.set(true);
             requestReader.submit(new ReadRequestsTask());
         }
@@ -81,9 +85,11 @@ public final class BlockingServer extends AbstractBenchmarkServer {
             } catch (IOException ioException) {
                 terminate(ioException);
             }
+            System.out.println("SERVER CLIENT: closed");
         }
 
         private void processQuery(@NotNull Query query) {
+            System.out.println("SERVER CLIENT: process query " + query.getId());
             sortArray(query.getArray());
             responseWriter.submit(() -> writeResponse(query));
         }
@@ -96,6 +102,7 @@ public final class BlockingServer extends AbstractBenchmarkServer {
             query.serializeTo(queryMessageBuffer);
             queryMessageBuffer.flip();
 
+            System.out.println("SERVER CLIENT: ready to write query " + query.getId());
             try {
                 while (queryMessageBuffer.hasRemaining() && working.get()) {
                     socketChannel.write(queryMessageBuffer);
@@ -103,25 +110,33 @@ public final class BlockingServer extends AbstractBenchmarkServer {
             } catch (IOException ioException) {
                 finishBenchmark();
             }
+            System.out.println("SERVER CLIENT: wrote query " + query.getId());
         }
 
         private final class ReadRequestsTask implements Runnable {
 
-            private final ByteBuffer querySizeBuffer = ByteBuffer.allocate(Integer.BYTES);
-            private final ByteBuffer queryBuffer = ByteBuffer.allocate(Query.getMaxSizeInBytes());
-            private final ByteBuffer[] buffers = {querySizeBuffer, queryBuffer};
-
             @Override
             public void run() {
                 while (working.get()) {
+                    System.out.println("SERVER CLIENT: ready to read query");
+                    Query query;
                     try {
-                        socketChannel.read(buffers);
+                        ByteBuffer querySizeBuffer = ByteBuffer.allocate(Integer.BYTES);
+                        socketChannel.read(querySizeBuffer);
+                        querySizeBuffer.flip();
+                        int querySize = querySizeBuffer.getInt();
+
+                        ByteBuffer queryBuffer = ByteBuffer.allocate(querySize);
+                        socketChannel.read(queryBuffer);
+                        queryBuffer.flip();
+                        query = Query.parseFrom(queryBuffer, querySize);
+
                     } catch (IOException ioException) {
                         finishBenchmark();
                         return;
                     }
-                    Query query = parseFrom(buffers);
                     logQueryStart(query.getId());
+                    System.out.println("SERVER CLIENT: read query " + query.getId());
                     workersThreadPool.submit(() -> processQuery(query));
                 }
             }
@@ -134,6 +149,9 @@ public final class BlockingServer extends AbstractBenchmarkServer {
                 Query query = Query.parseFrom(buffers[1], querySize);
 
                 buffers[0].clear();
+                while (buffers[1].hasRemaining() && buffers[0].remaining() > 0) {
+                    buffers[0].put(buffers[1].get());
+                }
                 buffers[1].compact();
                 return query;
             }

@@ -1,1 +1,1 @@
-{"configName":"config0","serverArchitecture":"BLOCKING","oneClientTotalRequestsNumber":1000,"changingParameter":{"type":"ARRAYS_TO_SORT_LENGTH","from":1000,"to":10000,"step":1000},"arraysToSortLength":-1,"numberOfSimultaneouslyWorkingClients":10,"clientRequestsTimeDeltaMillis":1000}
+{"configName":"config0","serverArchitecture":"BLOCKING","oneClientTotalRequestsNumber":2,"changingParameter":{"type":"ARRAYS_TO_SORT_LENGTH","from":10,"to":10,"step":10},"arraysToSortLength":-1,"numberOfSimultaneouslyWorkingClients":1,"clientRequestsTimeDeltaMillis":100}

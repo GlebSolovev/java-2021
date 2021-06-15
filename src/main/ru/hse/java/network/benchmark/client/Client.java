@@ -45,6 +45,7 @@ public final class Client extends AbstractClientHandler {
     @Override
     public void start() {
         isWorking.set(true);
+        System.out.println("started");
         connectService.submit(this::connectToServer);
     }
 
@@ -55,10 +56,13 @@ public final class Client extends AbstractClientHandler {
         requestsWriter.shutdownNow();
         responseReader.shutdownNow();
         try {
-            socketChannel.close();
+            if(socketChannel != null) {
+                socketChannel.close();
+            }
         } catch (IOException ioException) {
-            throw new RuntimeException("Client close failed", ioException);
+            System.err.println("Client socketChannel close failed: " + ioException);
         }
+        System.out.println("client closed");
     }
 
     private void finishBenchmark() {
@@ -79,8 +83,10 @@ public final class Client extends AbstractClientHandler {
             socketChannel.connect(serverSocketAddress);
         } catch (IOException ioException) {
             close();
-            throw new RuntimeException("Client connectToServer failed", ioException);
+            System.err.println("Client connectToServer failed: " + ioException);
+            return;
         }
+        System.out.println("client connected");
         requestsWriter.schedule(new WriteRequestTask(),
                                 requestsDeltaMillis, TimeUnit.MILLISECONDS);
         responseReader.submit(new ReadResponsesTask());
@@ -105,6 +111,7 @@ public final class Client extends AbstractClientHandler {
             query.serializeTo(byteBuffer);
             byteBuffer.flip();
 
+            System.out.println("start writing query " + query.getId());
             try {
                 while (byteBuffer.hasRemaining() && isWorking.get()) {
                     socketChannel.write(byteBuffer);
@@ -114,6 +121,7 @@ public final class Client extends AbstractClientHandler {
                 return;
             }
             writtenRequestsNumber.incrementAndGet();
+            System.out.println("finish writing query " + query.getId());
 
             sortArray(query.getArray());
             correctQueriesAnswers.put(query.getId(), query.getArray());
@@ -130,35 +138,38 @@ public final class Client extends AbstractClientHandler {
 
     private final class ReadResponsesTask implements Runnable {
 
-        private final ByteBuffer querySizeBuffer = ByteBuffer.allocate(Integer.BYTES);
-        private final ByteBuffer queryBuffer = ByteBuffer.allocate(Query.getMaxSizeInBytes());
-        private final ByteBuffer[] buffers = {querySizeBuffer, queryBuffer};
-
         @Override
         public void run() {
+            long readResponsesNumber = 0;
             while (isWorking.get()) {
+                System.out.println("start reading query");
+                Query query;
                 try {
-                    socketChannel.read(buffers);
+                    ByteBuffer querySizeBuffer = ByteBuffer.allocate(Integer.BYTES);
+                    socketChannel.read(querySizeBuffer);
+                    querySizeBuffer.flip();
+                    int querySize = querySizeBuffer.getInt();
+
+                    ByteBuffer queryBuffer = ByteBuffer.allocate(querySize);
+                    socketChannel.read(queryBuffer);
+                    queryBuffer.flip();
+                    query = Query.parseFrom(queryBuffer, querySize);
+
                 } catch (IOException ioException) {
                     finishBenchmark();
                     return;
                 }
-                Query query = parseFrom(buffers);
+                System.out.println("finish reading query " + query.getId());
                 checkResponseIsCorrect(query);
                 logQueryFinish(query.getId());
+
+                readResponsesNumber++;
+                if(readResponsesNumber == totalRequestsNumber) {
+                    System.out.println("client decided to finish");
+                    finishBenchmark();
+                    return;
+                }
             }
-        }
-
-        private @NotNull Query parseFrom(@NotNull ByteBuffer[] buffers) {
-            buffers[0].flip();
-            int querySize = buffers[0].getInt();
-
-            buffers[1].flip();
-            Query query = Query.parseFrom(buffers[1], querySize);
-
-            buffers[0].clear();
-            buffers[1].compact();
-            return query;
         }
     }
 
