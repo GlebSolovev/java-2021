@@ -1,13 +1,12 @@
 syntax = "proto3";
 
 option java_multiple_files = true;
-option java_package = "ru.hse.java.network.benchmark.protocol";
+option java_package = "ru.hse.java.network.benchmark.protocol.protobuf";
 option java_outer_classname = "QueryProto";
 
 message Query {
 
   int64 taskId = 1;
-  int32 arraySize = 2;
-  repeated int32 arrayToSort = 3;
+  repeated int32 array = 2;
 
 }

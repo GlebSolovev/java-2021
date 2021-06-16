@@ -26,7 +26,8 @@ public final class ServerBenchmarkMain {
             System.err.println("One argument required: benchmark config filename");
             System.exit(FAIL_RETURN_CODE);
         }
-        String benchmarkConfigFilePath = args[0];
+//        String benchmarkConfigFilePath = args[0];
+        String benchmarkConfigFilePath = "src/resources/blocking.json";
 
         BenchmarkConfig benchmarkConfig = null;
         try {

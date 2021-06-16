@@ -11,6 +11,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class BlockingServer extends AbstractBenchmarkServer {
@@ -85,16 +86,17 @@ public final class BlockingServer extends AbstractBenchmarkServer {
 
         private void processQuery(@NotNull Query query) {
             sortArray(query.getArray());
-            if(working.get()) {
+            try {
                 responseWriter.submit(() -> writeResponse(query));
+            } catch (RejectedExecutionException ignored) {
             }
         }
 
         private void writeResponse(@NotNull Query query) {
             logQueryFinish(query.getId());
 
-            ByteBuffer queryMessageBuffer = ByteBuffer.allocate(Integer.BYTES + query.getSizeInBytes());
-            queryMessageBuffer.putInt(query.getSizeInBytes());
+            ByteBuffer queryMessageBuffer = ByteBuffer.allocate(Integer.BYTES + query.getSerializedSize());
+            queryMessageBuffer.putInt(query.getSerializedSize());
             query.serializeTo(queryMessageBuffer);
             queryMessageBuffer.flip();
 
@@ -118,7 +120,7 @@ public final class BlockingServer extends AbstractBenchmarkServer {
                         socketChannel.read(querySizeBuffer);
                         querySizeBuffer.flip();
                         int querySize = querySizeBuffer.getInt();
-                        if(querySize == 0) { // query size == 0 => finish benchmark request
+                        if (querySize == 0) { // query size == 0 => finish benchmark request
                             finishBenchmark();
                             return;
                         }
@@ -126,15 +128,16 @@ public final class BlockingServer extends AbstractBenchmarkServer {
                         ByteBuffer queryBuffer = ByteBuffer.allocate(querySize);
                         socketChannel.read(queryBuffer);
                         queryBuffer.flip();
-                        query = Query.parseFrom(queryBuffer, querySize);
+                        query = Query.parseFrom(queryBuffer);
 
                     } catch (IOException ioException) {
                         finishBenchmark();
                         return;
                     }
                     logQueryStart(query.getId());
-                    if(working.get()) {
+                    try {
                         workersThreadPool.submit(() -> processQuery(query));
+                    } catch (RejectedExecutionException ignored) {
                     }
                 }
             }

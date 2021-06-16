@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class NonBlockingServer extends AbstractBenchmarkServer {
@@ -231,14 +232,15 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
                 queryBufferBytesNumber += socketChannel.read(queryBuffer);
                 if (queryBufferBytesNumber == messageSize) {
                     queryBuffer.flip();
-                    Query query = Query.parseFrom(queryBuffer, messageSize);
+                    Query query = Query.parseFrom(queryBuffer);
                     queryBufferBytesNumber = 0;
                     messageSize = -1;
                     queryBuffer = null;
 
                     logQueryStart(query.getId());
-                    if (isWorking.get()) {
+                    try {
                         workersThreadPool.submit(() -> processQuery(query));
+                    } catch (RejectedExecutionException ignored) {
                     }
                 }
             }
@@ -251,8 +253,8 @@ public final class NonBlockingServer extends AbstractBenchmarkServer {
             public void submitQuery(@NotNull Query query) {
                 logQueryFinish(query.getId());
 
-                ByteBuffer queryMessage = ByteBuffer.allocate(Integer.BYTES + query.getSizeInBytes());
-                queryMessage.putInt(query.getSizeInBytes());
+                ByteBuffer queryMessage = ByteBuffer.allocate(Integer.BYTES + query.getSerializedSize());
+                queryMessage.putInt(query.getSerializedSize());
                 query.serializeTo(queryMessage);
                 queryMessage.flip();
                 responsesToWrite.add(queryMessage);

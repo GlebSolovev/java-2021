@@ -8,6 +8,7 @@ import ru.hse.java.network.benchmark.server.AbstractClientHandler;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -126,11 +127,14 @@ public final class AsynchronousServer extends AbstractBenchmarkServer {
                                 }
 
                                 queryBuffer.flip();
-                                Query query = Query.parseFrom(queryBuffer, querySize);
+                                Query query = Query.parseFrom(queryBuffer);
                                 logQueryStart(query.getId());
+                                try {
+                                    workersThreadPool.submit(() -> processQuery(query));
+                                } catch (RejectedExecutionException ignored) {
+                                }
 
                                 if (working.get()) {
-                                    workersThreadPool.submit(() -> processQuery(query));
                                     asynchronousSocketChannel.read(querySizeBuffer, IO_OPERATION_TIMEOUT_MILLIS,
                                                                    TimeUnit.MILLISECONDS, null, this);
                                 }
@@ -149,8 +153,8 @@ public final class AsynchronousServer extends AbstractBenchmarkServer {
             public void startAsynchronousWrite(@NotNull Query query) {
                 logQueryFinish(query.getId());
 
-                ByteBuffer queryMessage = ByteBuffer.allocate(Integer.BYTES + query.getSizeInBytes());
-                queryMessage.putInt(query.getSizeInBytes());
+                ByteBuffer queryMessage = ByteBuffer.allocate(Integer.BYTES + query.getSerializedSize());
+                queryMessage.putInt(query.getSerializedSize());
                 query.serializeTo(queryMessage);
                 queryMessage.flip();
 

@@ -1,9 +1,11 @@
 package ru.hse.java.network.benchmark.protocol;
 
+import com.google.protobuf.InvalidProtocolBufferException;
 import org.jetbrains.annotations.NotNull;
-import ru.hse.java.network.benchmark.config.BenchmarkConfig;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 public class Query {
 
@@ -15,40 +17,28 @@ public class Query {
         this.array = array;
     }
 
-    public int getSizeInBytes() {
-        return Long.BYTES + Integer.BYTES + array.length * Integer.BYTES;
-    }
-
-    public static int getMaxSizeInBytes() {
-        return Integer.BYTES * 2 + Long.BYTES + BenchmarkConfig.ParametersBounds.ARRAYS_TO_SORT_LENGTH_MAX * Integer.BYTES;
+    public int getSerializedSize() {
+        return ru.hse.java.network.benchmark.protocol.protobuf.Query.newBuilder()
+                .setTaskId(id).addAllArray(Arrays.stream(array).boxed().collect(
+                        Collectors.toList())).build().getSerializedSize();
     }
 
     public void serializeTo(@NotNull ByteBuffer byteBuffer) {
-        byteBuffer.putLong(id);
-        byteBuffer.putInt(array.length);
-        for (int number : array) {
-            byteBuffer.putInt(number);
-        }
+        ru.hse.java.network.benchmark.protocol.protobuf.Query.Builder builder =
+                ru.hse.java.network.benchmark.protocol.protobuf.Query.newBuilder()
+                        .setTaskId(id).addAllArray(Arrays.stream(array).boxed().collect(Collectors.toList()));
+        byteBuffer.put(builder.build().toByteArray());
     }
 
-    public static @NotNull Query parseFrom(
-            @NotNull ByteBuffer byteBuffer, int messageSize) {
-        int byteBufferStartPosition = byteBuffer.position();
-
-        long id = byteBuffer.getLong();
-        int arraySize = byteBuffer.getInt();
-        int[] array = new int[arraySize];
-        for (int i = 0; i < arraySize; i++) {
-            array[i] = byteBuffer.getInt();
+    public static @NotNull Query parseFrom(@NotNull ByteBuffer byteBuffer) {
+        ru.hse.java.network.benchmark.protocol.protobuf.Query protoQuery;
+        try {
+            protoQuery = ru.hse.java.network.benchmark.protocol.protobuf.Query.parseFrom(byteBuffer);
+        } catch (InvalidProtocolBufferException invalidProtocolBufferException) {
+            throw new IllegalStateException("bytes in byteBuffer doesn't produce correct Query",
+                                            invalidProtocolBufferException);
         }
-        Query query = new Query(id, array);
-
-        int byteBufferEndPosition = byteBuffer.position();
-        if (byteBufferEndPosition - byteBufferStartPosition != messageSize) {
-            throw new IllegalStateException(
-                    "messageSize bytes in byteBuffer doesn't produce correct ServerToClientMessage");
-        }
-        return query;
+        return new Query(protoQuery.getTaskId(), protoQuery.getArrayList().stream().mapToInt(i -> i).toArray());
     }
 
     public long getId() {

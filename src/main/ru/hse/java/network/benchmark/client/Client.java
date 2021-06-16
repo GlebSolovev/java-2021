@@ -93,7 +93,6 @@ public final class Client extends AbstractClientHandler {
 
         private final AtomicLong writtenRequestsNumber = new AtomicLong(0);
         private final Random random = new Random();
-        private final ByteBuffer byteBuffer = ByteBuffer.allocate(Integer.BYTES + Query.getMaxSizeInBytes());
 
         @Override
         public void run() {
@@ -103,14 +102,14 @@ public final class Client extends AbstractClientHandler {
             Query query = generateQuery();
             logQueryStart(query.getId());
 
-            byteBuffer.clear();
-            byteBuffer.putInt(query.getSizeInBytes());
-            query.serializeTo(byteBuffer);
-            byteBuffer.flip();
+            ByteBuffer queryBuffer = ByteBuffer.allocate(Integer.BYTES + query.getSerializedSize());
+            queryBuffer.putInt(query.getSerializedSize());
+            query.serializeTo(queryBuffer);
+            queryBuffer.flip();
 
             try {
-                while (byteBuffer.hasRemaining() && isWorking.get()) {
-                    socketChannel.write(byteBuffer);
+                while (queryBuffer.hasRemaining() && isWorking.get()) {
+                    socketChannel.write(queryBuffer);
                 }
             } catch (IOException ioException) {
                 finishBenchmark();
@@ -147,7 +146,7 @@ public final class Client extends AbstractClientHandler {
                     ByteBuffer queryBuffer = ByteBuffer.allocate(querySize);
                     socketChannel.read(queryBuffer);
                     queryBuffer.flip();
-                    query = Query.parseFrom(queryBuffer, querySize);
+                    query = Query.parseFrom(queryBuffer);
 
                 } catch (IOException ioException) {
                     finishBenchmark();
